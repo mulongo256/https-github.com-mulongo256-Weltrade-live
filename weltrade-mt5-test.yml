@@ -1,0 +1,48 @@
+name: Weltrade MT5 Connection Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-weltrade:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Weltrade DNS
+        shell: pwsh
+        run: |
+          Write-Host "Checking mt5.dc1.weltrade.com"
+          Resolve-DnsName mt5.dc1.weltrade.com
+          Write-Host "Checking mt5.dc2.weltrade.com"
+          Resolve-DnsName mt5.dc2.weltrade.com
+
+      - name: Check network reachability
+        shell: pwsh
+        run: |
+          $hosts = @("mt5.dc1.weltrade.com", "mt5.dc2.weltrade.com")
+          foreach ($h in $hosts) {
+            Write-Host "Testing $h on common MT5/TLS ports..."
+            Test-NetConnection $h -Port 443 -WarningAction SilentlyContinue |
+              Select-Object ComputerName, RemoteAddress, RemotePort, TcpTestSucceeded
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install MetaTrader5
+
+      - name: Run connection helper
+        env:
+          WELTRADE_LOGIN: ${{ secrets.WELTRADE_LOGIN }}
+          WELTRADE_PASSWORD: ${{ secrets.WELTRADE_PASSWORD }}
+          WELTRADE_SERVER: ${{ secrets.WELTRADE_SERVER }}
+        run: python mt5_connection_test.py
