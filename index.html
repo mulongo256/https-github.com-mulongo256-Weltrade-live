@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Weltrade Reversal AI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080b12;color:#eaf0f7;font-family:Arial,sans-serif}
+.app{max-width:520px;margin:auto;padding:14px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+h1{font-size:20px;margin:0}
+.badge{padding:6px 10px;border-radius:20px;background:#18251c;color:#55e37a;font-size:12px}
+.card{background:#10151e;border:1px solid #202936;border-radius:14px;padding:14px;margin-bottom:12px}
+.label{color:#8492a6;font-size:12px}
+.value{font-size:16px;font-weight:bold;margin-top:5px}
+.status{text-align:center;padding:18px;border-radius:14px;background:#111923;border:1px solid #293443}
+.status .signal{font-size:28px;font-weight:800}
+.none{color:#8b98a9}.buy{color:#40e77b}.sell{color:#ff5964}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tf{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #202936;font-size:13px}
+.ok{color:#45e77b}.wait{color:#8995a5}
+.controls{display:flex;gap:8px}
+select,button{width:100%;padding:12px;border-radius:10px;border:1px solid #293443;background:#151c27;color:#fff}
+button{cursor:pointer;font-weight:bold}
+.info{font-size:12px;color:#8794a6;line-height:1.5}
+.warning{color:#ffc857}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <h1>Weltrade Reversal AI</h1>
+  <div class="badge" id="connection">● OFFLINE</div>
+</div>
+
+<div class="card">
+  <div class="label">BROKER</div>
+  <div class="value">Weltrade — Weltrade-Demo</div>
+</div>
+
+<div class="card">
+  <div class="label">SYMBOL</div>
+  <select id="symbol">
+    <option>MAX GainX 2000</option>
+    <option>MAX PainX 2000</option>
+    <option>PainX 1200</option>
+    <option>PainX 600</option>
+    <option>PainX 800</option>
+    <option>PainX 999</option>
+    <option>GainX 600</option>
+    <option>GainX 800</option>
+    <option>GainX 999</option>
+    <option>GainX 1200</option>
+    <option>GainX 400</option>
+    <option>MAX GainX 1000</option>
+    <option>MAX PainX 1000</option>
+    <option>PainX 400</option>
+  </select>
+</div>
+
+<div class="status">
+  <div class="label">REVERSAL SIGNAL</div>
+  <div class="signal none" id="signal">WAITING</div>
+  <div class="info" id="agreement">Agreement: 0/10</div>
+</div>
+
+<div class="card">
+  <div class="grid">
+    <div><div class="label">RSI</div><div class="value" id="rsi">--</div></div>
+    <div><div class="label">SIGNAL STRENGTH</div><div class="value" id="strength">NONE</div></div>
+    <div><div class="label">TP1</div><div class="value">RSI 50</div></div>
+    <div><div class="label">INVALIDATION</div><div class="value" id="invalid">--</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">10-TIMEFRAME CONFIRMATION</div>
+  <div id="timeframes"></div>
+</div>
+
+<div class="card">
+  <div class="label">INDICATOR RULES</div>
+  <p class="info">
+    BUY: RSI 0–10 + Alligator Green Line 1 + Ichimoku Green Line 2.
+    SELL: RSI 90–100 + Alligator Green Line 1 + Ichimoku Green Line 2.
+    CONFIRMED requires all 10 timeframes to agree.
+  </p>
+</div>
+
+<div class="card">
+  <div class="label">TELEGRAM</div>
+  <div class="value" id="telegram">Waiting for backend connection</div>
+</div>
+
+<div class="card">
+  <p class="info warning">
+    Signal-only system. This interface does not place, modify, or close trades.
+    Real market data must come from the secure Python/MetaApi backend.
+  </p>
+</div>
+
+</div>
+
+<script>
+const TF=["M1","M2","M3","M4","M5","M15","M20","M30","M45","H1"];
+
+function drawTF(){
+  const box=document.getElementById("timeframes");
+  box.innerHTML=TF.map(x =>
+    `<div class="tf"><span>${x}</span><span class="wait">WAIT</span></div>`
+  ).join("");
+}
+drawTF();
+
+/*
+  BACKEND HOOK
+  ----------------
+  The Python backend should eventually send JSON like:
+
+  {
+    "symbol":"GainX 600",
+    "signal":"BUY",
+    "strength":"CONFIRMED",
+    "agreement":10,
+    "rsi":7.4,
+    "invalidation":"RSI 0",
+    "timeframes":{
+      "M1":true,"M2":true,"M3":true,"M4":true,"M5":true,
+      "M15":true,"M20":true,"M30":true,"M45":true,"H1":true
+    }
+  }
+
+  Replace the demo function below with a fetch/WebSocket connection
+  to the deployed Python backend.
+*/
+
+function updateDashboard(data){
+  document.getElementById("connection").textContent="● ONLINE";
+  document.getElementById("connection").style.background="#18251c";
+
+  document.getElementById("rsi").textContent =
+    data.rsi==null ? "--" : Number(data.rsi).toFixed(2);
+
+  document.getElementById("agreement").textContent =
+    "Agreement: "+data.agreement+"/10";
+
+  document.getElementById("strength").textContent=data.strength||"NONE";
+  document.getElementById("invalid").textContent=data.invalidation||"--";
+
+  const s=document.getElementById("signal");
+  s.textContent=data.signal||"WAITING";
+  s.className="signal "+(
+    data.signal==="BUY"?"buy":
+    data.signal==="SELL"?"sell":"none"
+  );
+
+  document.getElementById("timeframes").innerHTML=TF.map(tf=>{
+    const ok=data.timeframes && data.timeframes[tf];
+    return `<div class="tf"><span>${tf}</span>
+      <span class="${ok?"ok":"wait"}">${ok?"✓ CONFIRMED":"WAIT"}</span></div>`;
+  }).join("");
+
+  document.getElementById("telegram").textContent =
+    data.telegram==="sent" ? "✓ Alert sent" : "Connected";
+}
+
+/* Demo display only. No fake market signal is generated. */
+</script>
+</body>
+</html>
